@@ -1,0 +1,148 @@
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ghosty Traffic Monitor</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#0b0e13;color:#dce4ef;font:14px Consolas,monospace}
+header{padding:22px;border-bottom:1px solid #29313e;background:#10151d}
+h1{margin:0;color:#8daeff;font-size:22px}
+p{color:#8794a7}
+main{padding:18px;max-width:1100px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.card{background:#111720;border:1px solid #29313e;border-radius:9px;padding:17px}
+.label{color:#8a99ad;font-size:12px}
+.value{font-size:25px;margin-top:10px;color:#a8c2ff}
+h2{font-size:15px;color:#b9caff;margin-top:25px}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:11px;border-bottom:1px solid #29313e}
+th{color:#8a99ad}
+.panel{overflow-x:auto;background:#111720;border:1px solid #29313e;border-radius:9px}
+button{background:#202c40;color:#dce4ef;border:1px solid #3b4e6b;padding:9px 14px;border-radius:5px;cursor:pointer}
+button:hover{background:#304361}
+.dot{color:#70e5a0}
+.small{font-size:12px;color:#8794a7;line-height:1.7}
+</style>
+</head>
+<body>
+<header>
+  <h1>◈ Ghosty Traffic Monitor</h1>
+  <p><span class="dot">●</span> Yerel tarayıcı izleme paneli</p>
+</header>
+<main>
+  <div class="grid">
+    <div class="card"><div class="label">Oturum süresi</div><div class="value" id="time">0 sn</div></div>
+    <div class="card"><div class="label">Sayfa görüntüleme</div><div class="value" id="views">1</div></div>
+    <div class="card"><div class="label">Tıklamalar</div><div class="value" id="clicks">0</div></div>
+    <div class="card"><div class="label">Ekran boyutu</div><div class="value" id="screen">-</div></div>
+    <div class="card"><div class="label">Bağlantı türü</div><div class="value" id="network">Bilinmiyor</div></div>
+    <div class="card"><div class="label">Çevrimiçi durumu</div><div class="value" id="online">-</div></div>
+  </div>
+
+  <h2>Tarayıcı bilgileri</h2>
+  <div class="panel"><table><tbody id="info"></tbody></table></div>
+
+  <h2>Sayfa olayları</h2>
+  <div style="margin:10px 0"><button id="clear">Olayları temizle</button></div>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Saat</th><th>Olay</th><th>Detay</th></tr></thead>
+      <tbody id="events"></tbody>
+    </table>
+  </div>
+  <p class="small">
+    Gizlilik: IP adresleri bu panel tarafından alınmaz veya gösterilmez.
+    Veriler yalnızca açık sekmede tutulur. GitHub ve ağ sağlayıcıları,
+    kendi sistemlerinde ayrıca bağlantı kayıtları tutabilir.
+  </p>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+let clicks = 0, views = 1, seconds = 0;
+const started = Date.now();
+
+function log(event, detail) {
+  const tr = document.createElement("tr");
+  [new Date().toLocaleTimeString("tr-TR"), event, detail].forEach(value => {
+    const td = document.createElement("td");
+    td.textContent = value;
+    tr.appendChild(td);
+  });
+  $("events").prepend(tr);
+  while ($("events").children.length > 100)
+    $("events").lastElementChild.remove();
+}
+
+function update() {
+  $("time").textContent = seconds + " sn";
+  $("views").textContent = views;
+  $("clicks").textContent = clicks;
+  $("screen").textContent = screen.width + "×" + screen.height;
+  $("online").textContent = navigator.onLine ? "Çevrimiçi" : "Çevrimdışı";
+  $("network").textContent =
+    navigator.connection?.effectiveType || "Bilinmiyor";
+}
+
+const rows = [
+  ["Tarayıcı", navigator.userAgent],
+  ["Dil", navigator.language],
+  ["Platform", navigator.platform || "Bilinmiyor"],
+  ["İşletim sistemi bilgisi", navigator.userAgentData?.platform || "Paylaşılmıyor"],
+  ["Ekran renk derinliği", screen.colorDepth + " bit"],
+  ["Saat dilimi", Intl.DateTimeFormat().resolvedOptions().timeZone],
+  ["Sayfa adresi", location.pathname],
+  ["Referrer", document.referrer || "Önceki sayfa bilgisi yok"]
+];
+
+rows.forEach(([name, value]) => {
+  const tr = document.createElement("tr");
+  [name, value].forEach(text => {
+    const td = document.createElement("td");
+    td.textContent = text;
+    tr.appendChild(td);
+  });
+  $("info").appendChild(tr);
+});
+
+document.addEventListener("click", e => {
+  clicks++;
+  const target = e.target;
+  const detail = target.tagName.toLowerCase() +
+    (target.id ? "#" + target.id : "");
+  log("Tıklama", detail);
+  update();
+});
+
+window.addEventListener("online", () => {
+  log("Bağlantı", "Çevrimiçi");
+  update();
+});
+window.addEventListener("offline", () => {
+  log("Bağlantı", "Çevrimdışı");
+  update();
+});
+window.addEventListener("resize", () => {
+  log("Ekran", screen.width + "×" + screen.height);
+  update();
+});
+document.addEventListener("visibilitychange", () => {
+  log("Sekme", document.hidden ? "Arka plana geçti" : "Görünür oldu");
+});
+
+$("clear").addEventListener("click", () => {
+  $("events").replaceChildren();
+  log("Sistem", "Olay listesi temizlendi");
+});
+
+log("Başlangıç", "İzleme başladı");
+update();
+setInterval(() => {
+  seconds = Math.floor((Date.now() - started) / 1000);
+  update();
+}, 1000);
+</script>
+</body>
+</html>
